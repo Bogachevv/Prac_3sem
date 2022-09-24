@@ -1,8 +1,8 @@
-s=fourth
+s=second
 flags=
 
 all:
-	gcc $(s).c $(flags) -o $(s).out 
+	gcc -Wall $(s).c $(flags) -o $(s).out 
 	rm -f $(s).o
 	./$(s).out
 
