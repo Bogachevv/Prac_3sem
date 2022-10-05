@@ -7,7 +7,7 @@
 
 #define RESIZE(buf, buf_len){                                                       \
         buf_len += BUF_BLOCK_SIZE;                                                  \
-        buf = realloc(buf, buf_len * sizeof(*buf));                                                \
+        buf = realloc(buf, buf_len * sizeof(*buf));                                 \
         if (!(buf)){                                                                \
             fprintf(stderr, "Allocation error: not enough memory\n");               \
             exit(ALLOC_ERR);                                                        \
@@ -55,7 +55,7 @@ size_t read_lines(str_t** result, FILE* fd){
             free(line);
         }
     }
-    printf("DEBUG: buf_len = %zu\n", buf_len);
+//    printf("DEBUG: buf_len = %zu\n", buf_len);
     free(buf);
     *result = lines;
     return lb_len;
@@ -87,7 +87,7 @@ T* q_sort_part(T* begin, T* end){
         swap(left_ptr, right_ptr);
     }
 
-    return left_ptr + 1;
+    return left_ptr ;
 }
 
 void q_sort(T* begin, T* end){
@@ -111,7 +111,7 @@ int main(int argc, str_t* argv){
     }else{
         fd = fopen(argv[1], "r");
         if (!fd){
-            fprintf(stderr, "File error: path=%s\n", argv[1]);
+//            fprintf(stderr, "File error: path=%s\n", argv[1]);
             exit(FILE_ERR);
         }
     }
@@ -127,7 +127,7 @@ int main(int argc, str_t* argv){
     for (size_t i = 0; i < lines_c; ++i){
         printf("%s\n", lines[i]);
     }
-    
+
     free_lines_buf(lines, lines_c);
     fclose(fd);
 	return 0;
