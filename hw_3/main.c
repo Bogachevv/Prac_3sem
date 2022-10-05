@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define BUF_BLOCK_SIZE 64
 #define ALLOC_ERR 111
@@ -61,6 +62,7 @@ size_t read_lines(str_t** result, FILE* fd){
     return lb_len;
 }
 
+<<<<<<< HEAD
 #define T str_t
 
 int compare(T left, T right){
@@ -97,11 +99,17 @@ void q_sort(T* begin, T* end){
     q_sort(part_ptr+1,end);
 }
 
+=======
+>>>>>>> 32970be695d7af7424745a441474701b3e38a3f2
 void free_lines_buf(str_t* lines, size_t len){
     for (size_t i = 0; i < len; ++i){
         free(lines[i]);
     }
     free(lines);
+}
+
+int comparator(const void* left, const void* right){
+    return strcmp(*(char**)left, *(char**)right);
 }
 
 int main(int argc, str_t* argv){
@@ -118,12 +126,11 @@ int main(int argc, str_t* argv){
 
 	str_t* lines;
     size_t lines_c = read_lines(&lines, fd);
-    for (size_t i = 0; i < lines_c; ++i){
-        printf("Line %zu: %p,  %s\n", i, &lines[i], lines[i]);
-    }
-    putchar('\n');
-    T *begin = lines, *end = lines + lines_c;
-    q_sort(begin, end);
+//    for (size_t i = 0; i < lines_c; ++i){
+//        printf("Line %zu: %p,  %s\n", i, &lines[i], lines[i]);
+//    }
+//    putchar('\n');
+    qsort(lines, lines_c, sizeof(str_t), comparator);
     for (size_t i = 0; i < lines_c; ++i){
         printf("%s\n", lines[i]);
     }
