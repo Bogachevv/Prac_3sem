@@ -1,10 +1,5 @@
 s=main
-flags=-Wall -Werror -std=c11 -g
-
-all:
-	gcc $(s).c $(flags) -o $(s).out 
-=======
-flags=-Wall -g -std=c11
+flags=-Wall -std=c11 -g
 
 all:
 	gcc $(s).c $(flags) -o $(s).out 
