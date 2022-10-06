@@ -43,8 +43,35 @@ uint32_t utf8_to_int32(uint8_t* uft8_seq, int len){
 	
 }
 
-void int32_to_utf8(uint32_t ch, uint8_t* ut8_seq, int* len){
-	
+void int32_to_utf8(uint32_t ch, uint8_t* utf8_seq, int* len){
+	if (ch <= 0x7F) {
+		*len = 1;
+		utf8_seq[0] = ch;
+		return;
+	}
+	if (ch <= 0x7FF){
+		*len = 2;
+		utf8_seq[1] = (ch & 0x3F) | 0x80;
+		utf8_seq[0] = (ch >> 6) | 0xC0;
+		return;
+	}
+	if (ch <= 0xFFFF){
+		*len = 3;
+		utf8_seq[2] = (ch & 0x3F) | 0x80;
+		utf8_seq[1] = ((ch >> 6) & 0x3F) | 0x80;
+		utf8_seq[0] = (ch >> 12) | 0xE0;
+		return;
+	}
+	if (ch <= 0x1FFFFF){
+		*len = 4;
+		utf8_seq[3] = (ch & 0x3F) | 0x80;
+		utf8_seq[2] = ((ch >> 6) & 0x3F) | 0x80;
+		utf8_seq[1] = ((ch >> 12) & 0x3F) | 0x80;
+		utf8_seq[0] = (ch >> 18) | 0xF0;
+		return;
+	}
+	fprintf(stderr, "Can't convert %d to UTF-8 (%d > 0x1FFFFF)", ch, ch);
+	exit(CONVERT_ERROR);
 }
 
 void utf8_to_utf16(FILE* fin, FILE* fout){
@@ -65,7 +92,7 @@ void tof16_to_utf8(FILE* fin, FILE* fout){
 	uint32_t i32;
 	uint16_t master, slave;
 
-	while (!eof(fin)){
+	while (!feof(fin)){
 		fread(&ch, sizeof(ch), 1, fin);
 		if (bom && ((ch >= 0xDF80) && (ch <= 0xDFFF))){
 			master = ch;
@@ -78,7 +105,7 @@ void tof16_to_utf8(FILE* fin, FILE* fout){
 		else master = ch;
 		i32 = utf16_to_int32(master, slave);
 		int32_to_utf8(i32, utf8_seq, &utf8_seq_len);
-		fwrite(utf8_seq, sizeof(*utf8_seq), len, fout);
+		fwrite(utf8_seq, sizeof(*utf8_seq), utf8_seq_len, fout);
 	}
 }
 
