@@ -39,8 +39,38 @@ void int32_to_utf16(uint32_t ch, uint16_t *master, uint16_t *slave){
 	return;
 }
 
-uint32_t utf8_to_int32(uint8_t* uft8_seq, int len){
+uint32_t utf8_to_int32(uint8_t* utf8_seq, int len){
+	uint32_t res = 0;
+	if (len == 1){
+		return utf8_seq[0];
+	}
+	if (len == 2){
+		res = (utf8_seq[0] & 0x1F);
+		res <<= 6;
+		res |= (utf8_seq[1] & 0x3F);
+		return res;
+	}
+	if (len == 3){
+		res = (utf8_seq[0] & 0x1F);
+		res <<= 6;
+		res |= (utf8_seq[1] & 0x3F);
+		res <<= 6;
+		res |= (utf8_seq[2] & 0x3F);
+		return res;
+	}
+	if (len == 4){
+		res = (utf8_seq[0] & 0x1F);
+		res <<= 6;
+		res |= (utf8_seq[1] & 0x3F);
+		res <<= 6;
+		res |= (utf8_seq[2] & 0x3F);
+		res <<= 6;
+		res |= (utf8_seq[3] & 0x3F);
+		return res;
+	}
 	
+	fprintf(stderr, "Invalid byte sequense\n");
+	exit(CONVERT_ERROR);
 }
 
 void int32_to_utf8(uint32_t ch, uint8_t* utf8_seq, int* len){
@@ -74,13 +104,29 @@ void int32_to_utf8(uint32_t ch, uint8_t* utf8_seq, int* len){
 	exit(CONVERT_ERROR);
 }
 
+uint16_t read_int16(FILE* fin, int bom){
+	uint8_t bytes[2] = {0, 0};
+	fread(bytes, sizeof(uint8_t), 2, fin);
+	uint16_t res = 0;
+	if (bom) {
+		res = bytes[1];
+		res <<= 8;
+		res |= bytes[0];
+	}else{
+		res = bytes[0];
+		res <<= 8;
+		res |= bytes[1];
+	}
+	return res;
+}
+
 void utf8_to_utf16(FILE* fin, FILE* fout){
 
 
 }
 
 #define DEFAULT_BOM 0
-void tof16_to_utf8(FILE* fin, FILE* fout){
+void utf16_to_utf8(FILE* fin, FILE* fout){
 	uint16_t ch = 0;
 	fread(&ch, sizeof(ch), 1, fin);
 	int bom = DEFAULT_BOM;
@@ -90,20 +136,18 @@ void tof16_to_utf8(FILE* fin, FILE* fout){
 	int utf8_seq_len;
 	uint8_t utf8_seq[4];
 	uint32_t i32;
-	uint16_t master, slave;
+	uint16_t master = 0, slave = 0;
 
 	while (!feof(fin)){
-		fread(&ch, sizeof(ch), 1, fin);
-		if (bom && ((ch >= 0xDF80) && (ch <= 0xDFFF))){
+		ch = read_int16(fin, bom);
+		if ((ch >= 0xDF80) && (ch <= 0xDFFF)){
 			master = ch;
 			fread(&slave, sizeof(slave), 1, fin);
 		}
-		else if (!bom && ((ch >= 0xDC00) && (0xDFFF))){
-			slave = ch;
-			fread(&master, sizeof(master), 1, fin);
-		}
 		else master = ch;
+		printf("m = %x, s = %x\n", master, slave);
 		i32 = utf16_to_int32(master, slave);
+		printf("%x\n", i32);
 		int32_to_utf8(i32, utf8_seq, &utf8_seq_len);
 		fwrite(utf8_seq, sizeof(*utf8_seq), utf8_seq_len, fout);
 	}
@@ -111,19 +155,11 @@ void tof16_to_utf8(FILE* fin, FILE* fout){
 
 int main(){
 	FILE *fin = stdin, *fout = stdout;
-	uint16_t master, slave;
-	
-	int32_to_utf16(0x10000, &master, &slave);
-	printf("%x\t%x\n", master, slave);
-	int32_to_utf16(0x103FE, &master, &slave);
-	printf("%x\t%x\n", master, slave);
-	int32_to_utf16(0x103FF, &master, &slave);
-	printf("%x\t%x\n", master, slave);
-	int32_to_utf16(0x10400, &master, &slave);
-	printf("%x\t%x\n", master, slave);
-	int32_to_utf16(0x107FE, &master, &slave);
-	printf("%x\t%x\n", master, slave);
-	int32_to_utf16(0x107FF, &master, &slave);
-	printf("%x\t%x\n", master, slave);
-
+	fin = fopen("./tests/be30.ucs", "rb");
+	fout = fopen("trash.txt", "wb");
+	if (!fin || !fout){
+		fprintf(stderr, "Can't open file\n");
+		return 2;
+	}
+	utf16_to_utf8(fin, fout);	
 }
