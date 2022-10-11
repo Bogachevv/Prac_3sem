@@ -150,9 +150,18 @@ void utf8_to_utf16(FILE* fin, FILE* fout, int bom){
 	ch = fgetc(fin);	
 	while (ch != EOF){
 		utf8_seq[0] = ch; utf8_seq_len = 1;
+		if ((utf8_seq[0] & 0xC0) == 0x80){
+			fprintf(stderr, "Incorrect symbol: %x\n", ch);
+			continue;
+		}
 		for (; (utf8_seq_len < 4) && (((ch = fgetc(fin)) & 0xC0) == 0x80); ++utf8_seq_len) {
 			utf8_seq[utf8_seq_len] = ch;
 		}
+		if (((utf8_seq[0] & 0xC0) == 0xC0) && (utf8_seq_len == 1)){
+			fprintf(stderr, "Incorrect symbol: %x, %d\n", utf8_seq[0], utf8_seq_len);
+			continue;
+		}
+
 		if (check_for_bom){
 			check_for_bom = 0;
 			if (is_bom(utf8_seq, utf8_seq_len)) continue;
@@ -222,7 +231,7 @@ int main(int argc, char** argv){
 	if (args[0].val)
 		fin = fopen(args[0].val, "rb");
 	if (args[1].val)
-		fin = fopen(args[1].val, "wb");
+		fout = fopen(args[1].val, "wb");
 	if (!fin || !fout){
 		fprintf(stderr, "Can't open file\n");
 		return 2;
@@ -234,4 +243,6 @@ int main(int argc, char** argv){
 	printf("Converting %s (UF16) to %s (UTF8)\n", args[0].val, args[1].val);
 	utf16_to_utf8(fin, fout, bom);
 #endif
+	fclose(fin);
+	fclose(fout);
 }

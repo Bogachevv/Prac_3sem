@@ -23,6 +23,8 @@ void add_back(struct List *list, struct Node *node){
 
 void process(struct List *pl, const char *str){
 	struct Node *last = pl->last, *cur = pl->first;
+	if (pl->first == NULL) return;
+	if (pl->last == NULL) return;
 	int flag = 1;
 	while (flag) {
 		flag = cur != last;

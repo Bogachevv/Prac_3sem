@@ -33,6 +33,7 @@ void add_back(list_t *list, node_t *node){
 void process(struct List *pl, const char *str){
 	node_t *last = pl->last, *cur = pl->first;
 	int flag = 1;
+	if (pl->first == NULL) return;
 	while (flag) {
 		flag = cur != last;
 		int cmp = strcmp(cur->elem, str);
