@@ -2,8 +2,11 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include "argparse.h"
 
 #define CONVERT_ERROR 123
+#define FILE_ERROR 122
+#define INCORRECT_ARGS 121
 
 #define HIGH_MASK 0xFFC00
 #define LOW_MASK 0x3FF
@@ -171,8 +174,6 @@ void utf16_to_utf8(FILE* fin, FILE* fout, int default_bom){
 	uint16_t ch = 0;
 	fread(&ch, sizeof(ch), 1, fin);
 	int bom = default_bom;
-	//if (ch == 0xFEFF) bom = 1;
-	//else if (ch == 0xFFFE) bom = 0;
 	if ((ch == 0xFEFF) || (ch == 0xFFFE)){
 		bom = (ch == 0xFEFF);
 		ch = read_int16(fin, bom);
@@ -200,15 +201,37 @@ void utf16_to_utf8(FILE* fin, FILE* fout, int default_bom){
 	}
 }
 
+//#define UTF8_IN
+//#define UTF16_IN
 #define DEFAULT_BOM 1
-int main(){
+int main(int argc, char** argv){
+	arg_t args[4] = {{"i", NULL, "input file", string}, 
+					 {"o", NULL, "output file", string}, 
+					 {"le", NULL, "default BOM: le", boolean}, 
+					 {"be", NULL, "default BOM: be", boolean}};
+	parse(argc, argv, args, 4);
+	if (args[2].val && args[3].val){
+		fprintf(stderr, "Incorrect input params: le and be\n");
+		exit(INCORRECT_ARGS);
+	}
+	int bom = DEFAULT_BOM;
+	if (args[2].val) bom = 0;
+	else if (args[3].val) bom = 1;
+	
 	FILE *fin = stdin, *fout = stdout;
-	fin = fopen("./tests/letextbad1.ucs", "rb");
-	fout = fopen("trash.txt", "wb");
+	if (args[0].val)
+		fin = fopen(args[0].val, "rb");
+	if (args[1].val)
+		fin = fopen(args[1].val, "wb");
 	if (!fin || !fout){
 		fprintf(stderr, "Can't open file\n");
 		return 2;
 	}
-	//utf8_to_utf16(fin, fout, DEFAULT_BOM);
-	utf16_to_utf8(fin, fout, DEFAULT_BOM);	
+#ifdef UTF8_IN
+	printf("Converting %s (UF8) to %s (UTF16)\n", args[0].val, args[1].val);
+	utf8_to_utf16(fin, fout, bom);
+#elif defined(UTF16_IN)
+	printf("Converting %s (UF16) to %s (UTF8)\n", args[0].val, args[1].val);
+	utf16_to_utf8(fin, fout, bom);
+#endif
 }
