@@ -1,5 +1,0 @@
-Input text(end with ctrl+D): 
-abba
-Hello world
-Privet mir
-Hi
