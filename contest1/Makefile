@@ -1,5 +1,5 @@
 s=fourth
-flags=-Wall -Werror -std=gnu11 -ggdb
+flags=-Wall -std=gnu11 -g
 
 all:
 	gcc $(s).c $(flags) -o $(s).out 

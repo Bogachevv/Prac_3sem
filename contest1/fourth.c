@@ -20,22 +20,13 @@ void extract_node(list_t *list, node_t *node){
 	if (node->prev) node->prev->next = node->next;
 	else list->first = node->next;
 	if (node->next) node->next->prev = node->prev;
-	else list->last = node->prev;
-}
-
-void add_back(list_t *list, node_t *node){
-	node->prev = list->last;
-	node->next = NULL;
-	list->last->next = node;
-	list->last = node;
 }
 
 void process(struct List *pl, const char *str){
-	node_t *last = pl->last, *cur = pl->first;
-	int flag = 1;
-	if (pl->first == NULL) return;
-	while (flag) {
-		flag = cur != last;
+	node_t *cur = pl->first;
+	node_t *new_tail = NULL, *last = NULL;
+	if (cur == NULL) return;
+	while (cur) {
 		int cmp = strcmp(cur->elem, str);
 		node_t *next = cur->next;
 		if (cmp == 0){
@@ -44,10 +35,22 @@ void process(struct List *pl, const char *str){
 		}
 		else if (cmp > 0){  // cmp > 0
 			extract_node(pl, cur);
-			add_back(pl, cur);	
+			if (new_tail == NULL) new_tail = cur;
+			else new_tail->next = cur;
+			cur->next = NULL;
+			last = cur;
 		}
 		cur = next;
 	}
+	if (pl->first == NULL) {
+		pl->first = new_tail;
+	}
+	else{
+		for (cur = pl->first; cur->next; cur = cur->next) {}
+		cur->next = new_tail;
+		if (new_tail) new_tail->prev = cur;
+	}
+	pl->last = last;
 }
 
 void print_list(list_t *list){
@@ -64,7 +67,7 @@ int main(){
 	node_t *node3 = malloc(sizeof(node3));
 	node_t *node4 = malloc(sizeof(node4));
 	char *str1 = malloc(2); str1[0] = 'A'; str1[1] = 0;
-	char *str2 = malloc(2); str2[0] = 'B'; str2[1] = 0;
+	char *str2 = malloc(2); str2[0] = 'A'; str2[1] = 0;
 	char *str3 = malloc(2); str3[0] = 'C'; str3[1] = 0;
 	char *str4 = malloc(2); str4[0] = 'A'; str4[1] = 0;
 	node1->elem = str1; node2->elem = str2; node3->elem = str3; node4->elem = str4;
