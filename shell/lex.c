@@ -4,30 +4,27 @@
 
 #define TRUE 1
 #define FALSE 0
+#define SPECIAL "&|;><()"
 
 void non_quotes_mode(char *ch_p, char **str_beg, char **str_end, int *state){
-	if (*ch_p == '"'){
+	if (*ch_p == '"') {
+		*state = 2;
 		*str_beg = ch_p + 1;
-		*state |= 1; //set last bit
 		return;
 	}
-	if (*ch_p == ' '){
-		*str_end = ch_p;
-		return;
+	if (*state == 0){
+		*state = 1;
+		*str_beg = ch_p;
 	}
+	*str_end = ch_p;
 }
 
 void quotes_mode(char *ch_p, char **str_beg, char **str_end, int *state){
-	if (*ch_p != '"') return;
-	if (*(ch_p + 1) == ' '){
-		*str_end = ch_p + 1;
-		*state &= -2; //clear last bit
+	*state = 2;
+	if (*ch_p == '"') {
+		*state = 3;
+		*str_end = ch_p - 1;
 	}
-}
-
-void spec_mode(char *ch_p, size_t cnt, char **str_beg, char **str_end){
-	*str_beg = ch_p;
-	*str_end = ch_p + cnt;
 }
 
 int char_in_str(char ch, const char *str){
@@ -35,27 +32,47 @@ int char_in_str(char ch, const char *str){
 	return FALSE;
 }
 
+char *build_str(char *str_beg, char *str_end){
+	int str_len = str_end - str_beg + 1;
+	char *new_str = malloc(str_len + 1);
+	memcpy(new_str, str_beg, str_len);
+	new_str[str_len] = 0;
+	return new_str;
+}
+
 char **parse_input(char *str){
-	char **res_buf = NULL;
 	int state = 0;
-	char *str_beg = str, *str_end = str - 1;
-	for (char *ch_p = str; *ch_p; ++ch_p){
-		if (char_in_str(*ch_p, "&|;><()")){
-			size_t cnt = 1 + (*(ch_p + 1) == *ch_p);
-			spec_mode(ch_p, cnt, &str_beg, &str_end);
+	char *str_beg = str, *str_end = str;
+	char **res_buf = NULL;
+	int buf_cap = 0, buf_len = 0;
+	for (char *ch_p = str; ; ++ch_p){
+		if ((*ch_p == ' ') && (state == 0)) continue;
+		int is_spec = char_in_str(*ch_p, SPECIAL);
+		if ((((*ch_p == ' ') || is_spec) && (state != 2)) || 
+						(*ch_p == 0) || (*ch_p == '\n')){
+			if (state != 0){
+				//push str
+				char *new_str = build_str(str_beg, str_end);
+				PUSH_BACK(res_buf, buf_cap, buf_len, new_str);
+				//!push str
+			}
+			state = 0;
+			if ((*ch_p == 0) || (*ch_p == '\n')) break; //loop exit point
+			if (is_spec){
+				//push special
+				str_beg = ch_p;
+				str_end = (*(ch_p + 1) == *ch_p) ? (str_beg + 1) : str_beg;
+				ch_p = str_end;
+				char *new_str = build_str(str_beg, str_end);
+				PUSH_BACK(res_buf, buf_cap, buf_len, new_str);
+				//!push special
+			}
+			continue;
 		}
-		if (state & 1) quotes_mode(ch_p, &str_beg, &str_end, &state);
-		else non_quotes_mode(ch_p, &str_beg, &str_end, &state);
+		if (state < 2) non_quotes_mode(ch_p, &str_beg, &str_end, &state);
+		else quotes_mode(ch_p, &str_beg, &str_end, &state);
+	}	
 
-		if (str_end >= str_beg){
-			size_t str_len = str_end - str_beg + 1;
-			char *new_str = malloc(str_len + 1);
-			memcpy(new_str, str_beg, str_len);
-			new_str[str_len] = 0;
-			printf("Parse res: %s\n", new_str);
-			str_beg = ch_p + 1;
-		}	
-	}
-
+	PUSH_BACK(res_buf, buf_cap, buf_len, NULL);
 	return res_buf;
 }
