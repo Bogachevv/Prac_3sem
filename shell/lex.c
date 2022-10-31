@@ -32,12 +32,17 @@ int char_in_str(char ch, const char *str){
 	return FALSE;
 }
 
-char *build_str(char *str_beg, char *str_end){
-	int str_len = str_end - str_beg + 1;
-	char *new_str = malloc(str_len + 1);
-	memcpy(new_str, str_beg, str_len);
-	new_str[str_len] = 0;
-	return new_str;
+char *copy_without_brackets(char *str_beg, char *str_end){
+	size_t brack_c = 0, s_len = str_end - str_beg + 1;
+	for (char *ch_p = str_beg; ch_p <= str_end; ++ch_p) 
+		brack_c += (*ch_p == '"');
+
+	char *res = calloc(s_len - brack_c + 1, sizeof(char));
+	for (char *wp = res, *rp = str_beg; rp <= str_end; ++rp){
+		if (*rp == '"') continue;
+		*(wp++) = *rp;
+	}
+	return res;
 }
 
 char **parse_input(char *str){
@@ -52,7 +57,7 @@ char **parse_input(char *str){
 						(*ch_p == 0) || (*ch_p == '\n')){
 			if (state != 0){
 				//push str
-				char *new_str = build_str(str_beg, str_end);
+				char *new_str = copy_without_brackets(str_beg, str_end);
 				PUSH_BACK(res_buf, buf_cap, buf_len, new_str);
 				//!push str
 			}
@@ -63,7 +68,7 @@ char **parse_input(char *str){
 				str_beg = ch_p;
 				str_end = (*(ch_p + 1) == *ch_p) ? (str_beg + 1) : str_beg;
 				ch_p = str_end;
-				char *new_str = build_str(str_beg, str_end);
+				char *new_str = copy_without_brackets(str_beg, str_end);
 				PUSH_BACK(res_buf, buf_cap, buf_len, new_str);
 				//!push special
 			}
