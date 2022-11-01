@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <sys/types.h>
+#include <limits.h>
 #include "lex.h"
 #include "utils.h"
 
@@ -35,7 +36,13 @@ int run_cmd(char **args){
 		return 0;
 	}
 	else{
-		execv(cmd, args+1);	
+		char prog_path[PATH_MAX];
+		if ((cmd[0] != '.') && (cmd[0] != '/'))
+			sprintf(prog_path, "/usr/bin/%s", cmd);
+		else
+			sprintf(prog_path, "%s", cmd);
+		int rs = execv(prog_path, args);
+		printf("Execv error: %d\n", rs);
 	}
 
 
