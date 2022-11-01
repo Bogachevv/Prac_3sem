@@ -5,16 +5,19 @@
 #define TRUE 1
 #define FALSE 0
 #define SPECIAL "&|;><()"
+#define SPECIAL_BIN "&|>"
 
 void non_quotes_mode(char *ch_p, char **str_beg, char **str_end, int *state){
-	if (*ch_p == '"') {
-		*state = 2;
-		*str_beg = ch_p + 1;
-		return;
-	}
 	if (*state == 0){
-		*state = 1;
-		*str_beg = ch_p;
+		if (*ch_p == '"') {
+			*state = 2;
+			*str_beg = ch_p + 1;
+		}
+		else
+		{
+			*state = 1;
+			*str_beg = ch_p;
+		}
 	}
 	*str_end = ch_p;
 }
@@ -45,6 +48,13 @@ char *copy_without_brackets(char *str_beg, char *str_end){
 	return res;
 }
 
+int check_str(char *str_beg, char *str_end){
+	int counter = 0;
+	for (char *ch_p = str_beg; (ch_p != str_end) && *ch_p; ++ch_p) 
+		counter += (*ch_p == '"');
+	return (counter + 1) & 1;
+}
+
 char **parse_input(char *str){
 	int state = 0;
 	char *str_beg = str, *str_end = str;
@@ -55,6 +65,11 @@ char **parse_input(char *str){
 		int is_spec = char_in_str(*ch_p, SPECIAL);
 		if ((((*ch_p == ' ') || is_spec) && (state != 2)) || 
 						(*ch_p == 0) || (*ch_p == '\n')){
+			if (check_str(str_beg, (state == 2) ? str_end + 1 : str_end) == 0){
+				printf("Incorrect input\n");
+				PUSH_BACK(res_buf, buf_cap, buf_len, NULL);
+				return res_buf;
+			}
 			if (state != 0){
 				//push str
 				char *new_str = copy_without_brackets(str_beg, str_end);
@@ -66,7 +81,8 @@ char **parse_input(char *str){
 			if (is_spec){
 				//push special
 				str_beg = ch_p;
-				str_end = (*(ch_p + 1) == *ch_p) ? (str_beg + 1) : str_beg;
+				str_end = ((*(ch_p + 1) == *ch_p) && char_in_str(*ch_p, SPECIAL_BIN)) 
+						? (str_beg + 1) : str_beg;
 				ch_p = str_end;
 				char *new_str = copy_without_brackets(str_beg, str_end);
 				PUSH_BACK(res_buf, buf_cap, buf_len, new_str);
