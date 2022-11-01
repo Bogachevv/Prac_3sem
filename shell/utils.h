@@ -1,1 +1,1 @@
-char *cd(char *path);
+int cd(char *path);

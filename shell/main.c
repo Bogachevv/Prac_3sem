@@ -1,6 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 #include "lex.h"
+#include "utils.h"
 
 void free_parsed(char **parsed){
 	for (char **str_ptr = parsed; *str_ptr; ++str_ptr){ 
@@ -12,39 +18,40 @@ void free_parsed(char **parsed){
 
 int run_cmd(char **args){
 	char *cmd = args[0];
-	if (strncmp(cmd, "cd", 2) == ){
-		char *pwd = args[1];
-		if (pwd == NULL) pwd = getenv("HOME");
-		int status = chdir(pwd);
-		if (status == -1){
-			//error handling
-			switch (errno){
-				case EACCES:
-					printf("Not enougth permissions to acces %s\n", pwd);
-					break;
-				case EFAULT:
-					printf("Incorrect path: %s\n", pwd);
-					break;
-				case ENAMETOOLONG:
-					printf("Path is too long:\n\tPath len: %d\tMax path len: %d", strlen(path), PATH_MAX);
-					break;
-				default:
-					printf("Unexpected error: %d\n", errno);
-			}
-		}
+	int exit_code;
+	if (strncmp(cmd, "cd", 2ul) == 0){
+		exit_code = cd(args[1]);
+		return exit_code;
 	}
+	pid_t pid = fork();
+	if (pid == -1){
+		printf("Fork error: %d\n", errno);
+		return errno;
+	}
+	if (pid){
+		int status;
+		wait(&status);
+		printf("Exit status: %d\n", status);
+		return 0;
+	}
+	else{
+		execv(cmd, args+1);	
+	}
+
 
 }
 
 
 int main(int argc, char** argv){
 	char *str = NULL; size_t str_cap = 0, len = 0;
+	int run_status = 0;
 	while (!feof(stdin)){
-		printf(">>");
+		if (run_status) printf("[%d]>>", run_status);
+		else printf(">>");
 		len = getline(&str, &str_cap, stdin);
 		if (len == -1) break;
 		char **parsed = parse_input(str);
-		int run_status = run_cmd(parsed);
+		run_status = run_cmd(parsed);
 		free_parsed(parsed);
 	}
 	free(str);
