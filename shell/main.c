@@ -12,6 +12,8 @@
 #include "lex.h"
 #include "utils.h"
 
+#define EXIT_C -2
+
 void free_parsed(char **parsed){
 	for (char **str_ptr = parsed; *str_ptr; ++str_ptr){ 
 		free(*str_ptr);
@@ -76,6 +78,10 @@ int run_cmd(char **args, int inp_fd, int out_fd, int err_fd){
 	if (strncmp(cmd, "cd", 2ul) == 0){
 		return cd(args[1]);
 	}
+
+	if (strcmp(cmd, "exit") == 0){
+		return EXIT_C;
+	}
 	
 	pid_t pid = fork();
 	if (pid == -1){
@@ -122,6 +128,10 @@ int main(int argc, char** argv){
 		char **parsed = parse_input(str);
 		if (*parsed == NULL) continue;
 		run_status = run_cmd(parsed, 0, 1, 2);
+		if (run_status == EXIT_C){
+			free_parsed(parsed);
+			break;
+		}
 		if (run_status == -1) {
 			printf("Shell error\n");
 			usr_code = 0; sys_code = 0;
