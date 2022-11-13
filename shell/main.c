@@ -66,12 +66,21 @@ int get_full_path(char *cmd, char *buf, size_t buf_cap){
 
 int change_fd(int old_fd, int new_fd){
 	if (old_fd == new_fd) return 0;
-	close(old_fd);
+	//close(old_fd);
 	int state = dup2(new_fd, old_fd);
 	close(new_fd);
 	return state;
 }
 
+void parse_status(int status, int *usr_code, int *sys_code){
+	*usr_code = 0; *sys_code = 0;
+	if (status == 0) return;
+	
+	if (WIFEXITED(status))
+		*usr_code = WEXITSTATUS(status);
+	else
+		*sys_code = WTERMSIG(status);
+}
 
 int run_cmd(char **args, int inp_fd, int out_fd, int err_fd){
 	char *cmd = args[0];
@@ -91,8 +100,8 @@ int run_cmd(char **args, int inp_fd, int out_fd, int err_fd){
 	if (pid){
 		int status = 0;
 		waitpid(pid, &status, 0);
-		int sys_code = status & 0xFF;
-		int usr_code = (status >> 8) & 0xFF;
+		int usr_code, sys_code;
+		parse_status(status, &usr_code, &sys_code);
 		printf("Exit status(usr, sys): %d, %d\n", usr_code, sys_code);
 		return status;
 	}
@@ -137,8 +146,7 @@ int main(int argc, char** argv){
 			usr_code = 0; sys_code = 0;
 		}
 		else{
-			sys_code = run_status & 0xFF;
-			usr_code = (run_status >> 8) & 0xFF;
+			parse_status(run_status, &usr_code, &sys_code);
 		}
 		free_parsed(parsed);
 	}
