@@ -52,7 +52,6 @@ cmd_t *prepare_cmd(char **args, cmd_t *cmd){
 	if (cmd == NULL) cmd = calloc(1, sizeof(cmd_t));
 	cmd->path = args[0];
 	if (cmd->args != NULL) free(cmd->args);
-	cmd->argc = get_argc(args);
 	cmd->args = calloc(cmd->argc + 1, sizeof(char*));
 	cmd->mode = CMD_DEFAULT;
 		
@@ -75,6 +74,7 @@ cmd_t *prepare_cmd(char **args, cmd_t *cmd){
 
 	}
 	
+	cmd->argc = get_argc(cmd->args);	
 	cmd->next = NULL;
 	return cmd;
 }
@@ -160,8 +160,12 @@ int run_cmd(const cmd_t *cmd, int async_fd){
 	if (cmd->mode == CMD_ASYNC){
 		ssize_t len = write(async_fd, cmd, sizeof(*cmd));
 		if (len == -1) fprintf(stderr, "Pipe write error\n");
-		//TODO: transfer cmd.args to the controller memory
-		for (char **arg_p; *arg_p; ++arg_p){
+		ssize_t path_len = strlen(cmd->path);
+		len = write(async_fd, &path_len, sizeof(path_len));
+		if (len == -1) fprintf(stderr, "Pipe write error\n");
+		len = write(async_fd, cmd->path, path_len);
+		if (len == -1) fprintf(stderr, "Pipe write error\n");
+		for (char **arg_p = cmd->args; *arg_p; ++arg_p){
 			ssize_t arg_len = strlen(*arg_p);
 			len = write(async_fd, &arg_len, sizeof(arg_len));
 			if (len == -1) fprintf(stderr, "Pipe write error\n");
@@ -191,21 +195,23 @@ int run_cmd(const cmd_t *cmd, int async_fd){
 	}
 	else{
 		//run command
-		char prog_path[PATH_MAX];
-		int rs = get_full_path(cmd->path, prog_path, PATH_MAX);
-		if (rs != 0){
-			fprintf(stderr, "Can't find %s\n", cmd->path);
-			exit(127);
-		}
-		printf("Running %s\n", prog_path);
+		
+		//char prog_path[PATH_MAX];
+		//int rs = get_full_path(cmd->path, prog_path, PATH_MAX);
+		//if (rs != 0){
+		//	fprintf(stderr, "Can't find %s\n", cmd->path);
+		//	exit(127);
+		//}
+		//printf("Running %s\n", prog_path);
+		printf("Running %s\n", cmd->path);
 		
 		change_fd(0, cmd->inp_ph);	
 		change_fd(1, cmd->out_ph);	
 		change_fd(2, cmd->err_ph);	
 	
-		execv(prog_path, cmd->args);
-		printf("Execv error: %d\n", rs);
-		exit(rs);
+		execvp(cmd->path, cmd->args);
+		printf("Execv error: %d\n", errno);
+		exit(-1);
 	}
 }
 

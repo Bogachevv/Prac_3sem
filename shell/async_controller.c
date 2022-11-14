@@ -29,9 +29,28 @@ int main(int argc, char **argv){
 			exit(-1);
 		}
 		printf("Controller: argc = %d\n", cmd.argc);
+		ssize_t path_len;
+		ssize_t len = read(rd_fd, &path_len, sizeof(path_len));		
+		if (len == -1) fprintf(stderr, "Pipe write error\n");
+		cmd.path = calloc(path_len + 1, 1);
+		len = read(rd_fd, cmd.path, path_len);
+		if (len == -1) fprintf(stderr, "Pipe write error\n");
+		printf("cmd.path = %s\n", cmd.path);
+
+		cmd.args = calloc(cmd.argc + 1, sizeof(char*));
+		for (int i = 0; i < cmd.argc; ++i){
+			ssize_t arg_len;
+			len = read(rd_fd, &arg_len, sizeof(arg_len));
+			if (len == -1) fprintf(stderr, "Pipe write error\n");
+			char *buf = calloc(arg_len + 1, 1);			
+			len = read(rd_fd, buf, arg_len);
+			if (len == -1) fprintf(stderr, "Pipe write error\n");
+			printf("arg[%d] = %s\n", i, buf);
+			(cmd.args)[i] = buf;
+		}
+
 		cmd.mode = CMD_CONTROLLER;
-		exit(2);
-		//run_cmd(&cmd, -1);
+		run_cmd(&cmd, -1);
 	}
 
 	while (alive_c > 0) { //waiting childs 
