@@ -52,7 +52,8 @@ cmd_t *prepare_cmd(char **args, cmd_t *cmd){
 	if (cmd == NULL) cmd = calloc(1, sizeof(cmd_t));
 	cmd->path = args[0];
 	if (cmd->args != NULL) free(cmd->args);
-	cmd->args = calloc(get_argc(args) + 1, sizeof(char*));
+	cmd->argc = get_argc(args);
+	cmd->args = calloc(cmd->argc + 1, sizeof(char*));
 	cmd->mode = CMD_DEFAULT;
 		
 	cmd->inp_ph = 0;
@@ -146,13 +147,7 @@ void parse_status(int status, int *usr_code, int *sys_code){
 		*sys_code = WTERMSIG(status);
 }
 
-void chld_handler(int sig){
-	int status;
-	wait(&status);
-	printf("Async finish status: %d\n", status);
-}
-
-int run_cmd(const cmd_t *cmd){
+int run_cmd(const cmd_t *cmd, int async_fd){
 	printf("CMD mode: %d\n", cmd->mode);
 	if (strncmp(cmd->path, "cd", 2ul) == 0){
 		return cd(cmd->args[1]);
@@ -162,6 +157,20 @@ int run_cmd(const cmd_t *cmd){
 		return EXIT_C;
 	}
 	
+	if (cmd->mode == CMD_ASYNC){
+		ssize_t len = write(async_fd, cmd, sizeof(*cmd));
+		if (len == -1) fprintf(stderr, "Pipe write error\n");
+		//TODO: transfer cmd.args to the controller memory
+		for (char **arg_p; *arg_p; ++arg_p){
+			ssize_t arg_len = strlen(*arg_p);
+			len = write(async_fd, &arg_len, sizeof(arg_len));
+			if (len == -1) fprintf(stderr, "Pipe write error\n");
+			len = write(async_fd, *arg_p, arg_len);
+			if (len == -1) fprintf(stderr, "Pipe write error\n");
+		}
+		return 0;
+	}
+
 	pid_t pid = fork();
 	if (pid == -1){
 		printf("Fork error: errno%d\n", errno);
@@ -169,19 +178,19 @@ int run_cmd(const cmd_t *cmd){
 	}
 	if (pid){
 		int status = 0;
-		if (cmd->mode != CMD_ASYNC){
+		if (cmd->mode == CMD_CONTROLLER){
+			return 0;
+		}
+		else{
 			waitpid(pid, &status, 0);
 			int usr_code, sys_code;
 			parse_status(status, &usr_code, &sys_code);
 			printf("Exit status(usr, sys): %d, %d\n", usr_code, sys_code);
 			return status;
 		}
-		else {
-			signal(SIGCHLD, chld_handler);
-			return 0;
-		}
 	}
 	else{
+		//run command
 		char prog_path[PATH_MAX];
 		int rs = get_full_path(cmd->path, prog_path, PATH_MAX);
 		if (rs != 0){
