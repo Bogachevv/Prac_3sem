@@ -23,37 +23,10 @@ void print_input_prompt(int usr_code, int sys_code){
 	else printf(">>");
 }
 
-int start_ac(){
-	int pipes[2]; // {pipe.read, pipe.write}
-	int rs = pipe(pipes);
-	if (rs == -1){
-		fprintf(stderr, "Pipe error\n");
-		return -1;
-	}
-	pid_t pid = fork();
-	if (pid == -1){
-		fprintf(stderr, "Fork error\n");
-		return -1;
-	}
-	if (pid){ //Father
-		close(pipes[0]); //close pipe.read
-		return pipes[1]; //return pipe.write
-	}
-	else{ //Son
-		close(pipes[1]); //close pipe.write
-		char buf[16];
-		sprintf(buf, "%d", pipes[0]); 
-		execl("./async_controller.out", "./async_controller.out", buf, NULL);
-		fprintf(stderr, "Exec error\n");
-		exit(-2);
-	}
-}
-
 int main(int argc, char** argv){
 	char *str = NULL; size_t str_cap = 0, len = 0;
 	int run_status = 0, usr_code = 0, sys_code = 0;
 	cmd_t *cmd = NULL;
-	int async_fd = start_ac();	
 
 	while (!feof(stdin)){
 		print_input_prompt(usr_code, sys_code);
@@ -63,7 +36,7 @@ int main(int argc, char** argv){
 		if (*parsed == NULL) continue;
 		
 		cmd = prepare_cmd(parsed, cmd);
-		run_status = run_cmd(cmd, async_fd);
+		run_status = run_cmd(cmd);
 		free_parsed(parsed);
 		
 		if (run_status == EXIT_C) break;

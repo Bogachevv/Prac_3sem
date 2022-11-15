@@ -21,5 +21,5 @@ int change_fd(int old_fd, int new_fd);
 
 void parse_status(int status, int *usr_code, int *sys_code);
 
-int run_cmd(const cmd_t *cmd, int async_fd);
+int run_cmd(const cmd_t *cmd);
 

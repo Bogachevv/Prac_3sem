@@ -86,52 +86,8 @@ void free_cmd(cmd_t *cmd){
 	free(cmd);
 }
 
-int check_file(char *dir, char *fname){
-	char path[PATH_MAX];
-	sprintf(path, "%s/%s", dir, fname);
-	FILE *fd = fopen(path, "r");
-	if (fd == NULL) 
-		return 0;
-	else{
-		fclose(fd);
-		return 1;
-	}
-}
-
-int get_full_path(char *cmd, char *buf, size_t buf_cap){
-	if ((cmd[0] == '.') || (cmd[0] == '/')) {
-		strncpy(buf, cmd, PATH_MAX);
-		return 0;
-	}
-	char *PATH = getenv("PATH");
-	char *PATH_END = PATH + strlen(PATH);
-	char *str_beg = PATH, *str_end;
-	char dir_path[PATH_MAX];
-	int f_check = 0;
-	do{
-		str_end = strstr(str_beg, ":");
-		str_end = (str_end) ? str_end : PATH_END;
-		size_t str_len = str_end - str_beg;
-		memcpy(dir_path, str_beg, str_len);
-		dir_path[str_len] = 0;
-		f_check = check_file(dir_path, cmd);
-		str_beg = str_end + 1;
-
-	} while ((str_end != PATH_END) && (!f_check));
-	
-	if (!f_check) return -1;
-	if (buf_cap < strlen(dir_path) + strlen(cmd) + 1){
-		printf("Size error: can't copy full path to the buffer \n(buf size = %ld)\n", buf_cap);
-		return -1;
-	}
-	sprintf(buf, "%s/%s", dir_path, cmd);
-	return 0;
-}
-
-
 int change_fd(int old_fd, int new_fd){
 	if (old_fd == new_fd) return 0;
-	//close(old_fd);
 	int state = dup2(new_fd, old_fd);
 	close(new_fd);
 	return state;
@@ -147,7 +103,7 @@ void parse_status(int status, int *usr_code, int *sys_code){
 		*sys_code = WTERMSIG(status);
 }
 
-int run_cmd(const cmd_t *cmd, int async_fd){
+int run_cmd(const cmd_t *cmd){
 	printf("CMD mode: %d\n", cmd->mode);
 	if (strncmp(cmd->path, "cd", 2ul) == 0){
 		return cd(cmd->args[1]);
@@ -155,25 +111,7 @@ int run_cmd(const cmd_t *cmd, int async_fd){
 
 	if (strcmp(cmd->path, "exit") == 0){
 		return EXIT_C;
-	}
-	
-	if (cmd->mode == CMD_ASYNC){
-		ssize_t len = write(async_fd, cmd, sizeof(*cmd));
-		if (len == -1) fprintf(stderr, "Pipe write error\n");
-		ssize_t path_len = strlen(cmd->path);
-		len = write(async_fd, &path_len, sizeof(path_len));
-		if (len == -1) fprintf(stderr, "Pipe write error\n");
-		len = write(async_fd, cmd->path, path_len);
-		if (len == -1) fprintf(stderr, "Pipe write error\n");
-		for (char **arg_p = cmd->args; *arg_p; ++arg_p){
-			ssize_t arg_len = strlen(*arg_p);
-			len = write(async_fd, &arg_len, sizeof(arg_len));
-			if (len == -1) fprintf(stderr, "Pipe write error\n");
-			len = write(async_fd, *arg_p, arg_len);
-			if (len == -1) fprintf(stderr, "Pipe write error\n");
-		}
-		return 0;
-	}
+	}	
 
 	pid_t pid = fork();
 	if (pid == -1){
@@ -195,14 +133,6 @@ int run_cmd(const cmd_t *cmd, int async_fd){
 	}
 	else{
 		//run command
-		
-		//char prog_path[PATH_MAX];
-		//int rs = get_full_path(cmd->path, prog_path, PATH_MAX);
-		//if (rs != 0){
-		//	fprintf(stderr, "Can't find %s\n", cmd->path);
-		//	exit(127);
-		//}
-		//printf("Running %s\n", prog_path);
 		printf("Running %s\n", cmd->path);
 		
 		change_fd(0, cmd->inp_ph);	
