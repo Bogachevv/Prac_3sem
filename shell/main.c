@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include "lex.h"
 #include "cmdrun.h"
@@ -19,7 +20,18 @@ void print_input_prompt(int usr_code, int sys_code){
 	else printf(">>");
 }
 
+int disable_sigint(){
+    __sighandler_t prev = signal(SIGINT, SIG_IGN);
+    if (prev == SIG_ERR){
+        fprintf(stderr, "signal() error\n");
+        return -1;
+    }
+    return 0;
+}
+
 int main(int argc, char** argv){
+    disable_sigint();
+
 	char *str = NULL; size_t str_cap = 0, len;
 	int run_status, usr_code = 0, sys_code = 0;
 	cmd_t *cmd = NULL;
