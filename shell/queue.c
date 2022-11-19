@@ -23,6 +23,17 @@ int init(queue_t *deq){
 	return 0;
 }
 
+void free_queue(queue_t *deq){
+    if (deq == NULL) return;
+    block_t *block = deq->left;
+    while (block){
+        block_t *nxt = block->next;
+        free(block->begin);
+        free(block);
+        block = nxt;
+    }
+}
+
 int push_back(queue_t *deq, T elm){
 	block_t *block = deq->right;
 	if (block->right - block->begin >= BLOCK_SIZE){

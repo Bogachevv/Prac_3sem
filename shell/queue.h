@@ -17,6 +17,8 @@ typedef struct queue{
 
 int init(queue_t *deq);
 
+void free_queue(queue_t *deq);
+
 int push_back(queue_t *deq, T elm);
 
 T pop(queue_t *deq);

@@ -22,4 +22,4 @@ utils.o: utils.c utils.h
 	gcc -c utils.c $(flags) -o utils.o
 
 clear:
-	rm -f lex.o main.o utils.o cmdrun.o shell.out
+	rm -f lex.o main.o utils.o cmdrun.o queue.o shell.out

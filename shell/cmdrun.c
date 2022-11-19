@@ -5,19 +5,10 @@
 #include <string.h>
 #include <sys/wait.h>
 #include <sys/types.h>
-#include <sys/stat.h>
-#include <limits.h>
-#include <signal.h>
 #include <fcntl.h>
 
 #include "utils.h"
 #include "cmdrun.h"
-
-size_t get_argc(char **argv){
-	size_t c = 0;
-	for (char **arg_p = argv; *arg_p; ++arg_p) ++c;
-	return c;
-}
 
 void redirect(char ***args_p, cmd_t *cmd){
 	char **arg_p = *args_p;
@@ -45,11 +36,11 @@ void redirect(char ***args_p, cmd_t *cmd){
 		cmd->out_ph = fd;
 		++arg_p;
 	}
-	*args_p = arg_p;
+    *args_p = arg_p;
 }
 
 cmd_t *prepare_cmd(char **args, int argc){
-	cmd_t cmd = calloc(1, sizeof(cmd_t));
+	cmd_t *cmd = calloc(1, sizeof(cmd_t));
 	cmd->path = args[0];
 	cmd->args = calloc(cmd->argc + 1, sizeof(char*));
 	cmd->mode = CMD_DEFAULT;
@@ -57,6 +48,10 @@ cmd_t *prepare_cmd(char **args, int argc){
 	cmd->inp_ph = 0;
 	cmd->out_ph = 1;
 	cmd->err_ph = 2;
+
+	cmd->fd_to_close = -1;
+	cmd->father_fd_to_close[0] = -1;
+	cmd->father_fd_to_close[1] = -1;
 	
 	char **arg_wr = cmd->args;
 	int i = 0;
@@ -79,32 +74,77 @@ cmd_t *prepare_cmd(char **args, int argc){
 	return cmd;
 }
 
+void prepare_conveyor(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
+    cmd_t *head = *head_ptr;
+    cmd_t *cur = *cur_ptr;
+
+    cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
+    new_cmd->mode = CMD_CONVEYOR;
+    if (head == NULL){
+        head = new_cmd;
+    }
+    else{
+        cur->next = new_cmd;
+        //make pipe
+        int fd[2]; //fd[0] = pipe.read, fd[1] = pipe.write
+        pipe(fd);
+        cur->out_ph = fd[1];
+        new_cmd->inp_ph = fd[0];
+        cur->fd_to_close = fd[0];
+        new_cmd->fd_to_close = fd[1];
+
+        new_cmd->father_fd_to_close[0] = fd[0];
+        new_cmd->father_fd_to_close[1] = fd[1];
+    }
+
+    cur = new_cmd;
+
+    *head_ptr = head;
+    *cur_ptr = cur;
+}
+
+void prepare_default(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
+    cmd_t *head = *head_ptr;
+    cmd_t *cur = *cur_ptr;
+
+    cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
+    if (head == NULL){
+        head = new_cmd;
+    }
+    else{
+        cur->next = new_cmd;
+    }
+
+    cur = new_cmd;
+
+    *head_ptr = head;
+    *cur_ptr = cur;
+}
+
 cmd_t *prepare_cmd_seq(char **args){
 	cmd_t *head = NULL, *cur = NULL;
 	int argc = 0;
 	char **cmd_arg_p = args;
+    int mode = 0; // 0 - default, 1 - conveyor, 2 - async
 	for (char **arg_p = args; ; ++arg_p){
-		if ((((*arg_p)[0] == '|') && ((*arg_p)[1] != '|')) || (*arg_p == NULL)){
-			cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
-			if (head == NULL){
-				head = new_cmd;
-			}
-			else{
-				cur->next = new_cmd;
-				//make pipe
-				int fd[2]; //fd[0] = pipe.read, fd[1] = pipe.write
-				pipe(fd);
-				cur->out_ph = fd[1];
-				new_cmd->inp_ph = fd[0];
-				cur->fd_to_close = fd[0];
-				new_cmd->fd_to_close = fd[1];
-			}
+        // ((*arg_p == NULL) || (((*arg_p)[0] == '|') && ((*arg_p)[1] != '|')))
+        if (((*arg_p == NULL) && (mode == 1)) || ((*arg_p != NULL) && ((*arg_p)[0] == '|') && ((*arg_p)[1] != '|'))) {
+            prepare_conveyor(cmd_arg_p, argc, &head, &cur);
 
-			cur = new_cmd;
-			cmd_arg_p = arg_p + 1;
-			argc = 0;
-		}
-		else{
+            cmd_arg_p = arg_p + 1;
+            argc = 0;
+            if (*arg_p == NULL) break;
+            mode = 1;
+        }
+        else if ((*arg_p == NULL) && (mode == 0)){
+            prepare_default(cmd_arg_p, argc, &head, &cur);
+
+            cmd_arg_p = arg_p + 1;
+            argc = 0;
+            if (*arg_p == NULL) break;
+            mode = 0;
+        }
+        else{
 			++argc;
 		}
 
@@ -138,8 +178,8 @@ void parse_status(int status, int *usr_code, int *sys_code){
 }
 
 int wait_async(queue_t *async_queue){
-	int pid_c = async_queue->len;
-	for (int i = 0; i < pid_c; ++i){
+	size_t pid_c = async_queue->len;
+	for (size_t i = 0; i < pid_c; ++i){
 		pid_t pid = pop(async_queue);
 		int status;
 		pid_t rs = waitpid(pid, &status, WNOHANG);
@@ -153,7 +193,7 @@ int wait_async(queue_t *async_queue){
 	return 0;
 }
 
-int run_cmd(const cmd_t *cmd, queue_t *async_queue){
+int run_cmd(cmd_t *cmd, queue_t *async_queue){
 	printf("CMD mode: %d\n", cmd->mode);
 	wait_async(async_queue);
 	if (strncmp(cmd->path, "cd", 2ul) == 0){
@@ -171,13 +211,19 @@ int run_cmd(const cmd_t *cmd, queue_t *async_queue){
 	}
 	if (pid){
 		cmd->pid = pid;
+		if (cmd->father_fd_to_close[0] != -1) close(cmd->father_fd_to_close[0]); 
+		if (cmd->father_fd_to_close[1] != -1) close(cmd->father_fd_to_close[1]);
+
 		int status = 0;
 		if (cmd->mode == CMD_ASYNC){
 			push_back(async_queue, pid);
 			return 0;
 		}
 		if (cmd->mode == CMD_CONVEYOR){
-			//NOT IMPLEMENTED
+			if (cmd->next != NULL){
+				run_cmd(cmd->next, async_queue);
+			}
+			waitpid(pid, &status, 0);
 			return 0;
 		}
 		else{
@@ -194,10 +240,11 @@ int run_cmd(const cmd_t *cmd, queue_t *async_queue){
 		
 		change_fd(0, cmd->inp_ph);	
 		change_fd(1, cmd->out_ph);	
-		change_fd(2, cmd->err_ph);	
-	
-		execvp(cmd->path, cmd->args);
-		printf("Execv error: %d\n", errno);
+		change_fd(2, cmd->err_ph);
+        if (cmd->fd_to_close != -1) close(cmd->fd_to_close);
+
+        execvp(cmd->path, cmd->args);
+		printf("Execvp error: %d\n", errno);
 		exit(-1);
 	}
 }

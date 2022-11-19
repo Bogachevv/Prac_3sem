@@ -36,11 +36,15 @@ int main(int argc, char** argv){
 		len = getline(&str, &str_cap, stdin);
 		if (len == -1) break;
 		char **parsed = parse_input(str);
-		if (*parsed == NULL) continue;
+		if (*parsed == NULL) {
+            free(parsed);
+            continue;
+        }
 		
-		cmd = prepare_cmd(parsed, cmd);
+		cmd = prepare_cmd_seq(parsed);
 		run_status = run_cmd(cmd, &async_queue);
 		free_parsed(parsed);
+        free_cmd(cmd);
 		
 		if (run_status == EXIT_C) break;
 		if (run_status == -1) {
@@ -51,8 +55,8 @@ int main(int argc, char** argv){
 			parse_status(run_status, &usr_code, &sys_code);
 		}
 	}
-	free(cmd);
 	free(str);
+    free_queue(&async_queue);
 
 	return 0;
 }
