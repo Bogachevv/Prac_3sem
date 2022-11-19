@@ -9,6 +9,7 @@
 
 #include "lex.h"
 #include "cmdrun.h"
+#include "queue.h"
 
 void free_parsed(char **parsed){
 	for (char **str_ptr = parsed; *str_ptr; ++str_ptr){ 
@@ -27,6 +28,8 @@ int main(int argc, char** argv){
 	char *str = NULL; size_t str_cap = 0, len = 0;
 	int run_status = 0, usr_code = 0, sys_code = 0;
 	cmd_t *cmd = NULL;
+	queue_t async_queue;
+	init(&async_queue);
 
 	while (!feof(stdin)){
 		print_input_prompt(usr_code, sys_code);
@@ -36,7 +39,7 @@ int main(int argc, char** argv){
 		if (*parsed == NULL) continue;
 		
 		cmd = prepare_cmd(parsed, cmd);
-		run_status = run_cmd(cmd);
+		run_status = run_cmd(cmd, &async_queue);
 		free_parsed(parsed);
 		
 		if (run_status == EXIT_C) break;

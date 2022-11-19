@@ -103,8 +103,25 @@ void parse_status(int status, int *usr_code, int *sys_code){
 		*sys_code = WTERMSIG(status);
 }
 
-int run_cmd(const cmd_t *cmd){
+int wait_async(queue_t *async_queue){
+	int pid_c = async_queue->len;
+	for (int i = 0; i < pid_c; ++i){
+		pid_t pid = pop(async_queue);
+		int status;
+		pid_t rs = waitpid(pid, &status, WNOHANG);
+		if (rs == 0){
+			push_back(async_queue, pid);
+		}
+		else{
+			printf("Process %d finished\n", pid);
+		}
+	}
+	return 0;
+}
+
+int run_cmd(const cmd_t *cmd, queue_t *async_queue){
 	printf("CMD mode: %d\n", cmd->mode);
+	wait_async(async_queue);
 	if (strncmp(cmd->path, "cd", 2ul) == 0){
 		return cd(cmd->args[1]);
 	}
@@ -120,7 +137,12 @@ int run_cmd(const cmd_t *cmd){
 	}
 	if (pid){
 		int status = 0;
-		if (cmd->mode == CMD_CONTROLLER){
+		if (cmd->mode == CMD_ASYNC){
+			push_back(async_queue, pid);
+			return 0;
+		}
+		if (cmd->mode == CMD_CONVEYOR){
+			//NOT IMPLEMENTED
 			return 0;
 		}
 		else{

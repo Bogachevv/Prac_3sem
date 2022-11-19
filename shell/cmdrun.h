@@ -1,10 +1,12 @@
+#include "queue.h"
+
 #define EXIT_C -2
 
 #define CMD_ASYNC -1
 #define CMD_DEFAULT 0
 #define CMD_ON_SUCCES 1
 #define CMD_ON_ERROR 2
-#define CMD_CONTROLLER 3
+#define CMD_CONVEYOR 3
 
 typedef struct cmd{
 	char *path;
@@ -21,5 +23,5 @@ int change_fd(int old_fd, int new_fd);
 
 void parse_status(int status, int *usr_code, int *sys_code);
 
-int run_cmd(const cmd_t *cmd);
+int run_cmd(const cmd_t *cmd, queue_t *async_queue);
 

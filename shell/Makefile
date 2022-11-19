@@ -3,14 +3,14 @@ flags=-std=gnu11 -g -Wall
 
 all: shell.out 
 
-shell.out: main.o lex.o utils.o cmdrun.o
-	gcc lex.o utils.o cmdrun.o main.o -o shell.out
+shell.out: main.o lex.o utils.o cmdrun.o queue.o
+	gcc queue.o lex.o utils.o cmdrun.o main.o -o shell.out
 
 main.o: main.c
 	gcc -c main.c $(flags) -o main.o
 
-async_controller.o: async_controller.c
-	gcc -c async_controller.c $(flags) -o async_controller.o
+queue.o: queue.c queue.h
+	gcc -c queue.c $(flags) -o queue.o
 
 cmdrun.o: cmdrun.c cmdrun.h
 	gcc -c cmdrun.c $(flags) -o cmdrun.o
