@@ -48,10 +48,9 @@ void redirect(char ***args_p, cmd_t *cmd){
 	*args_p = arg_p;
 }
 
-cmd_t *prepare_cmd(char **args, cmd_t *cmd){
-	if (cmd == NULL) cmd = calloc(1, sizeof(cmd_t));
+cmd_t *prepare_cmd(char **args, int argc){
+	cmd_t cmd = calloc(1, sizeof(cmd_t));
 	cmd->path = args[0];
-	if (cmd->args != NULL) free(cmd->args);
 	cmd->args = calloc(cmd->argc + 1, sizeof(char*));
 	cmd->mode = CMD_DEFAULT;
 		
@@ -60,7 +59,8 @@ cmd_t *prepare_cmd(char **args, cmd_t *cmd){
 	cmd->err_ph = 2;
 	
 	char **arg_wr = cmd->args;
-	for (char **arg_p = args; *arg_p; ++arg_p){
+	int i = 0;
+	for (char **arg_p = args; (*arg_p) && (i < argc); ++arg_p, ++i){
 		if (strchr("<>", (*arg_p)[0])){
 			redirect(&arg_p, cmd);
 		}
@@ -74,9 +74,43 @@ cmd_t *prepare_cmd(char **args, cmd_t *cmd){
 
 	}
 	
-	cmd->argc = get_argc(cmd->args);	
+	cmd->argc = argc;	
 	cmd->next = NULL;
 	return cmd;
+}
+
+cmd_t *prepare_cmd_seq(char **args){
+	cmd_t *head = NULL, *cur = NULL;
+	int argc = 0;
+	char **cmd_arg_p = args;
+	for (char **arg_p = args; ; ++arg_p){
+		if ((((*arg_p)[0] == '|') && ((*arg_p)[1] != '|')) || (*arg_p == NULL)){
+			cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
+			if (head == NULL){
+				head = new_cmd;
+			}
+			else{
+				cur->next = new_cmd;
+				//make pipe
+				int fd[2]; //fd[0] = pipe.read, fd[1] = pipe.write
+				pipe(fd);
+				cur->out_ph = fd[1];
+				new_cmd->inp_ph = fd[0];
+				cur->fd_to_close = fd[0];
+				new_cmd->fd_to_close = fd[1];
+			}
+
+			cur = new_cmd;
+			cmd_arg_p = arg_p + 1;
+			argc = 0;
+		}
+		else{
+			++argc;
+		}
+
+	}	
+	
+	return head;
 }
 
 void free_cmd(cmd_t *cmd){
@@ -136,6 +170,7 @@ int run_cmd(const cmd_t *cmd, queue_t *async_queue){
 		return -1;
 	}
 	if (pid){
+		cmd->pid = pid;
 		int status = 0;
 		if (cmd->mode == CMD_ASYNC){
 			push_back(async_queue, pid);

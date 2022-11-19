@@ -13,8 +13,10 @@ typedef struct cmd{
 	char **args;
 	int argc;
 	int inp_ph, out_ph, err_ph;
+	int fd_to_close;
 	struct cmd *next;
 	int mode;
+	pid_t pid;
 } cmd_t;
 
 cmd_t *prepare_cmd(char **args, cmd_t *cmd);
