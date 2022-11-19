@@ -1,11 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
 #include <string.h>
-#include <sys/types.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 #include "lex.h"
 #include "cmdrun.h"
@@ -25,8 +20,8 @@ void print_input_prompt(int usr_code, int sys_code){
 }
 
 int main(int argc, char** argv){
-	char *str = NULL; size_t str_cap = 0, len = 0;
-	int run_status = 0, usr_code = 0, sys_code = 0;
+	char *str = NULL; size_t str_cap = 0, len;
+	int run_status, usr_code = 0, sys_code = 0;
 	cmd_t *cmd = NULL;
 	queue_t async_queue;
 	init(&async_queue);

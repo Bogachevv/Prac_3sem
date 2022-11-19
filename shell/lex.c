@@ -31,8 +31,6 @@ void quotes_mode(char *ch_p, char **str_beg, char **str_end, int *state){
 }
 
 int char_in_str(char ch, const char *str){
-	//for (size_t i = 0; str[i]; ++i) if (str[i] == ch) return TRUE;
-	//return FALSE;
 	return (strchr(str, ch) != NULL);
 }
 

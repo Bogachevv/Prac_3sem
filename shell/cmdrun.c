@@ -13,7 +13,7 @@
 void redirect(char ***args_p, cmd_t *cmd){
 	char **arg_p = *args_p;
 	if (*(arg_p + 1) == NULL){
-		fprintf(stderr, "Not enougth args\n");
+		fprintf(stderr, "Not enough args\n");
 	}
 
 	if ((*arg_p)[0] == '<'){ //stdin
@@ -41,8 +41,16 @@ void redirect(char ***args_p, cmd_t *cmd){
 
 cmd_t *prepare_cmd(char **args, int argc){
 	cmd_t *cmd = calloc(1, sizeof(cmd_t));
+    if (cmd == NULL) {
+        fprintf(stderr, "Allocation error: %d\n", errno);
+        return NULL;
+    }
 	cmd->path = args[0];
 	cmd->args = calloc(cmd->argc + 1, sizeof(char*));
+    if (cmd->args == NULL) {
+        fprintf(stderr, "Allocation error: %d\n", errno);
+        return NULL;
+    }
 	cmd->mode = CMD_DEFAULT;
 		
 	cmd->inp_ph = 0;
@@ -74,20 +82,28 @@ cmd_t *prepare_cmd(char **args, int argc){
 	return cmd;
 }
 
-void prepare_conveyor(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
+int prepare_conveyor(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
     cmd_t *head = *head_ptr;
     cmd_t *cur = *cur_ptr;
 
     cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
+    if (new_cmd == NULL){
+        fprintf(stderr, "Prepare cmd error\n");
+        return -1;
+    }
     new_cmd->mode = CMD_CONVEYOR;
     if (head == NULL){
         head = new_cmd;
     }
     else{
+        // cur == NULL <==> head == NULL
         cur->next = new_cmd;
         //make pipe
         int fd[2]; //fd[0] = pipe.read, fd[1] = pipe.write
-        pipe(fd);
+        if (pipe(fd) == -1){
+            fprintf(stderr, "Pipe error: %d\n", errno);
+            return -1;
+        }
         cur->out_ph = fd[1];
         new_cmd->inp_ph = fd[0];
         cur->fd_to_close = fd[0];
@@ -101,13 +117,20 @@ void prepare_conveyor(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_
 
     *head_ptr = head;
     *cur_ptr = cur;
+
+    return 0;
 }
 
-void prepare_default(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
+int prepare_default(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
     cmd_t *head = *head_ptr;
     cmd_t *cur = *cur_ptr;
 
     cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
+    if (new_cmd == NULL){
+        fprintf(stderr, "Prepare cmd error\n");
+        return -1;
+    }
+
     if (head == NULL){
         head = new_cmd;
     }
@@ -119,6 +142,8 @@ void prepare_default(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_p
 
     *head_ptr = head;
     *cur_ptr = cur;
+
+    return 0;
 }
 
 cmd_t *prepare_cmd_seq(char **args){
@@ -127,9 +152,12 @@ cmd_t *prepare_cmd_seq(char **args){
 	char **cmd_arg_p = args;
     int mode = 0; // 0 - default, 1 - conveyor, 2 - async
 	for (char **arg_p = args; ; ++arg_p){
-        // ((*arg_p == NULL) || (((*arg_p)[0] == '|') && ((*arg_p)[1] != '|')))
         if (((*arg_p == NULL) && (mode == 1)) || ((*arg_p != NULL) && ((*arg_p)[0] == '|') && ((*arg_p)[1] != '|'))) {
-            prepare_conveyor(cmd_arg_p, argc, &head, &cur);
+            int rs = prepare_conveyor(cmd_arg_p, argc, &head, &cur);
+            if (rs == -1){
+                fprintf(stderr, "prepare_conveyor() error\n");
+                return NULL;
+            }
 
             cmd_arg_p = arg_p + 1;
             argc = 0;
@@ -137,7 +165,11 @@ cmd_t *prepare_cmd_seq(char **args){
             mode = 1;
         }
         else if ((*arg_p == NULL) && (mode == 0)){
-            prepare_default(cmd_arg_p, argc, &head, &cur);
+            int rs = prepare_default(cmd_arg_p, argc, &head, &cur);
+            if (rs == -1){
+                fprintf(stderr, "prepare_default() error\n");
+                return NULL;
+            }
 
             cmd_arg_p = arg_p + 1;
             argc = 0;
@@ -187,7 +219,9 @@ int wait_async(queue_t *async_queue){
 			push_back(async_queue, pid);
 		}
 		else{
-			printf("Process %d finished\n", pid);
+            int usr, sys;
+            parse_status(status, &usr, &sys);
+			printf("Process %d finished(usr:%d, sys:%d)\n", pid, usr, sys);
 		}
 	}
 	return 0;
@@ -210,7 +244,6 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 		return -1;
 	}
 	if (pid){
-		cmd->pid = pid;
 		if (cmd->father_fd_to_close[0] != -1) close(cmd->father_fd_to_close[0]); 
 		if (cmd->father_fd_to_close[1] != -1) close(cmd->father_fd_to_close[1]);
 

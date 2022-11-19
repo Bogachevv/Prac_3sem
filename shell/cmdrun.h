@@ -1,10 +1,12 @@
+#pragma once
+
 #include "queue.h"
 
 #define EXIT_C -2
 
 #define CMD_ASYNC -1
 #define CMD_DEFAULT 0
-#define CMD_ON_SUCCES 1
+#define CMD_ON_SUCCESS 1
 #define CMD_ON_ERROR 2
 #define CMD_CONVEYOR 3
 
@@ -17,7 +19,6 @@ typedef struct cmd{
 	int father_fd_to_close[2];
 	struct cmd *next;
 	int mode;
-	pid_t pid;
 } cmd_t;
 
 cmd_t *prepare_cmd(char **args, int argc);
