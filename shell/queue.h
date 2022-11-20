@@ -12,6 +12,7 @@ typedef struct block{
 
 typedef struct queue{
 	block_t *left, *right;
+	block_t *free_block;
 	size_t len;
 } queue_t;
 
