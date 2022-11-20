@@ -1,4 +1,4 @@
-flags=-std=gnu11 -g -Wall -O2
+flags=-std=gnu11 -g -Wall -O0
 
 
 all: shell.out 

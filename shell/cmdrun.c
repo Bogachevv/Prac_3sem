@@ -46,7 +46,7 @@ cmd_t *prepare_cmd(char **args, int argc){
         return NULL;
     }
 	cmd->path = args[0];
-	cmd->args = calloc(cmd->argc + 1, sizeof(char*));
+	cmd->args = calloc(argc + 1, sizeof(char*));
     if (cmd->args == NULL) {
         fprintf(stderr, "Allocation error: %d\n", errno);
         return NULL;
