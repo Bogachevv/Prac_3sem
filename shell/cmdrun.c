@@ -116,6 +116,7 @@ int prepare_conveyor(char **cmd_arg_p, cmd_t **head_ptr, cmd_t **cur_ptr){
         cur->fd_to_close = fd[0];
         new_cmd->fd_to_close = fd[1];
 
+        cur->father_fd_to_close[0] = fd[1];
         new_cmd->father_fd_to_close[0] = fd[0];
         new_cmd->father_fd_to_close[1] = fd[1];
     }
@@ -209,6 +210,8 @@ int wait_async(queue_t *async_queue){
 	return 0;
 }
 
+//int costyl = 2;
+
 int run_cmd(cmd_t *cmd, queue_t *async_queue){
 	printf("CMD mode: %d\n", cmd->mode);
 	wait_async(async_queue);
@@ -221,13 +224,21 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 	}	
 
 	pid_t pid = fork();
+//    --costyl;
+//    if (costyl == 0) close(4);
 	if (pid == -1){
 		printf("Fork error: errno%d\n", errno);
 		return -1;
 	}
 	if (pid){
-		if (cmd->father_fd_to_close[0] != -1) close(cmd->father_fd_to_close[0]); 
-		if (cmd->father_fd_to_close[1] != -1) close(cmd->father_fd_to_close[1]);
+		if (cmd->father_fd_to_close[0] != -1){
+            printf("Father closing %d", cmd->father_fd_to_close[0]);
+            close(cmd->father_fd_to_close[0]);
+        }
+		if (cmd->father_fd_to_close[1] != -1){
+            printf("Father closing %d", cmd->father_fd_to_close[1]);
+            close(cmd->father_fd_to_close[1]);
+        }
 
 		int status = 0;
 		if (cmd->mode == CMD_ASYNC){
@@ -238,6 +249,7 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 			if (cmd->next != NULL){
 				run_cmd(cmd->next, async_queue);
 			}
+            printf("Waiting for %d\n", pid);
 			waitpid(pid, &status, 0);
 			return 0;
 		}
@@ -265,7 +277,10 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 		change_fd(0, cmd->inp_ph);	
 		change_fd(1, cmd->out_ph);	
 		change_fd(2, cmd->err_ph);
-        if (cmd->fd_to_close != -1) close(cmd->fd_to_close);
+        if (cmd->fd_to_close != -1){
+            printf("Process %d closing %d\n", getpid(), cmd->fd_to_close);
+            close(cmd->fd_to_close);
+        }
 
         execvp(cmd->path, cmd->args);
 		printf("Execvp error: %d\n", errno);
