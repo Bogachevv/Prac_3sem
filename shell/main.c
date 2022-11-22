@@ -4,6 +4,7 @@
 #include <signal.h>
 
 #include "lex.h"
+#include "parser.h"
 #include "cmdrun.h"
 #include "queue.h"
 
@@ -47,11 +48,13 @@ int main(int argc, char** argv){
             free(parsed);
             continue;
         }
-		
-		cmd = prepare_cmd_seq(parsed);
+
+        arg_seq_t *arg_seq = parse_args(parsed);
+		cmd = prepare_cmd_seq(arg_seq);
 		run_status = run_cmd(cmd, &async_queue);
-		free_parsed(parsed);
+        free_arg_seq(arg_seq);
         free_cmd(cmd);
+		free_parsed(parsed);
 		
 		if (run_status == EXIT_C) break;
 		if (run_status == -1) {

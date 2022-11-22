@@ -1,14 +1,10 @@
 #pragma once
 
 #include "queue.h"
+#include "cmd_mode.h"
+#include "parser.h"
 
 #define EXIT_C -2
-
-#define CMD_ASYNC -1
-#define CMD_DEFAULT 0
-#define CMD_ON_SUCCESS 1
-#define CMD_ON_ERROR 2
-#define CMD_CONVEYOR 3
 
 typedef struct cmd{
 	char *path;
@@ -21,9 +17,9 @@ typedef struct cmd{
 	int mode;
 } cmd_t;
 
-cmd_t *prepare_cmd(char **args, int argc);
+cmd_t *prepare_cmd(char **args);
 
-cmd_t *prepare_cmd_seq(char **args);
+cmd_t *prepare_cmd_seq(arg_seq_t *arg_seq);
 
 int change_fd(int old_fd, int new_fd);
 

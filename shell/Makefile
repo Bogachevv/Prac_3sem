@@ -3,16 +3,19 @@ flags=-std=gnu11 -g -Wall -O0
 
 all: shell.out 
 
-shell.out: main.o lex.o utils.o cmdrun.o queue.o
-	gcc queue.o lex.o utils.o cmdrun.o main.o -o shell.out
+shell.out: main.o lex.o utils.o cmdrun.o queue.o parser.o
+	gcc queue.o lex.o utils.o parser.o cmdrun.o main.o -o shell.out
 
 main.o: main.c
 	gcc -c main.c $(flags) -o main.o
 
+parser.o: parser.c parser.h cmd_mode.h
+	gcc -c parser.c $(flags) -o parser.o
+
 queue.o: queue.c queue.h
 	gcc -c queue.c $(flags) -o queue.o
 
-cmdrun.o: cmdrun.c cmdrun.h
+cmdrun.o: cmdrun.c cmdrun.h cmd_mode.h
 	gcc -c cmdrun.c $(flags) -o cmdrun.o
 	
 lex.o: lex.c lex.h
@@ -22,4 +25,4 @@ utils.o: utils.c utils.h
 	gcc -c utils.c $(flags) -o utils.o
 
 clear:
-	rm -f lex.o main.o utils.o cmdrun.o queue.o shell.out
+	rm -f lex.o main.o utils.o cmdrun.o queue.o parser.o shell.out

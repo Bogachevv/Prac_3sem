@@ -39,7 +39,14 @@ void redirect(char ***args_p, cmd_t *cmd){
     *args_p = arg_p;
 }
 
-cmd_t *prepare_cmd(char **args, int argc){
+int get_argc(char **args){
+    int c = 0;
+    for (char **arg_p = args; *arg_p; ++arg_p) ++c;
+    return c;
+}
+
+cmd_t *prepare_cmd(char **args){
+    int argc = get_argc(args);
 	cmd_t *cmd = calloc(1, sizeof(cmd_t));
     if (cmd == NULL) {
         fprintf(stderr, "Allocation error: %d\n", errno);
@@ -82,11 +89,11 @@ cmd_t *prepare_cmd(char **args, int argc){
 	return cmd;
 }
 
-int prepare_conveyor(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
+int prepare_conveyor(char **cmd_arg_p, cmd_t **head_ptr, cmd_t **cur_ptr){
     cmd_t *head = *head_ptr;
     cmd_t *cur = *cur_ptr;
 
-    cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
+    cmd_t *new_cmd = prepare_cmd(cmd_arg_p);
     if (new_cmd == NULL){
         fprintf(stderr, "Prepare cmd error\n");
         return -1;
@@ -121,11 +128,13 @@ int prepare_conveyor(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_p
     return 0;
 }
 
-int prepare_default(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_ptr){
+int prepare_default(char **cmd_arg_p, cmd_t **head_ptr, cmd_t **cur_ptr, int next_mode){
     cmd_t *head = *head_ptr;
     cmd_t *cur = *cur_ptr;
 
-    cmd_t *new_cmd = prepare_cmd(cmd_arg_p, argc);
+    cmd_t *new_cmd = prepare_cmd(cmd_arg_p);
+    new_cmd->mode = next_mode;
+
     if (new_cmd == NULL){
         fprintf(stderr, "Prepare cmd error\n");
         return -1;
@@ -146,43 +155,16 @@ int prepare_default(char **cmd_arg_p, int argc, cmd_t **head_ptr, cmd_t **cur_pt
     return 0;
 }
 
-cmd_t *prepare_cmd_seq(char **args){
+cmd_t *prepare_cmd_seq(arg_seq_t *arg_seq){
 	cmd_t *head = NULL, *cur = NULL;
-	int argc = 0;
-	char **cmd_arg_p = args;
-    int mode = 0; // 0 - default, 1 - conveyor, 2 - async
-	for (char **arg_p = args; ; ++arg_p){
-        if (((*arg_p == NULL) && (mode == 1)) || ((*arg_p != NULL) && ((*arg_p)[0] == '|') && ((*arg_p)[1] != '|'))) {
-            int rs = prepare_conveyor(cmd_arg_p, argc, &head, &cur);
-            if (rs == -1){
-                fprintf(stderr, "prepare_conveyor() error\n");
-                return NULL;
-            }
-
-            cmd_arg_p = arg_p + 1;
-            argc = 0;
-            if (*arg_p == NULL) break;
-            mode = 1;
-        }
-        else if ((*arg_p == NULL) && (mode == 0)){
-            int rs = prepare_default(cmd_arg_p, argc, &head, &cur);
-            if (rs == -1){
-                fprintf(stderr, "prepare_default() error\n");
-                return NULL;
-            }
-
-            cmd_arg_p = arg_p + 1;
-            argc = 0;
-            if (*arg_p == NULL) break;
-            mode = 0;
-        }
+    for (; arg_seq; arg_seq = arg_seq->next){
+        if (arg_seq->next_mode == CMD_CONVEYOR) prepare_conveyor(arg_seq->args, &head, &cur);
         else{
-			++argc;
-		}
+            prepare_default(arg_seq->args, &head, &cur, arg_seq->next_mode);
+        }
+    }
 
-	}	
-	
-	return head;
+    return head;
 }
 
 void free_cmd(cmd_t *cmd){
@@ -263,13 +245,22 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 			waitpid(pid, &status, 0);
 			int usr_code, sys_code;
 			parse_status(status, &usr_code, &sys_code);
-			printf("Exit status(usr, sys): %d, %d\n", usr_code, sys_code);
+            printf("Exit status(usr, sys): %d, %d\n", usr_code, sys_code);
+            if (cmd->next != NULL){
+                if (cmd->mode == CMD_DEFAULT)
+                    run_cmd(cmd->next, async_queue);
+                else if ((cmd->mode == CMD_ON_SUCCESS) && (usr_code == 0) && (sys_code == 0))
+                    run_cmd(cmd->next, async_queue);
+                else if ((cmd->mode == CMD_ON_ERROR) && ((usr_code != 0) || (sys_code != 0)))
+                    run_cmd(cmd->next, async_queue);
+            }
 			return status;
 		}
 	}
 	else{
 		//run command
-		printf("Running %s\n", cmd->path);
+        signal(SIGINT, SIG_DFL);
+        printf("Running %s\n", cmd->path);
 		
 		change_fd(0, cmd->inp_ph);	
 		change_fd(1, cmd->out_ph);	
