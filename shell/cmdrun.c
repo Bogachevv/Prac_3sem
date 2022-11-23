@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "cmdrun.h"
 
+extern int silent;
+
 void redirect(char ***args_p, cmd_t *cmd){
 	char **arg_p = *args_p;
 	if (*(arg_p + 1) == NULL){
@@ -204,7 +206,7 @@ int wait_async(queue_t *async_queue){
 		else{
             int usr, sys;
             parse_status(status, &usr, &sys);
-			printf("Process %d finished(usr:%d, sys:%d)\n", pid, usr, sys);
+            if (!silent) printf("Process %d finished(usr:%d, sys:%d)\n", pid, usr, sys);
 		}
 	}
 	return 0;
@@ -213,7 +215,7 @@ int wait_async(queue_t *async_queue){
 //int costyl = 2;
 
 int run_cmd(cmd_t *cmd, queue_t *async_queue){
-	printf("CMD mode: %d\n", cmd->mode);
+    if (!silent) printf("CMD mode: %d\n", cmd->mode);
 	wait_async(async_queue);
 	if (strncmp(cmd->path, "cd", 2ul) == 0){
 		return cd(cmd->args[1]);
@@ -227,16 +229,16 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 //    --costyl;
 //    if (costyl == 0) close(4);
 	if (pid == -1){
-		printf("Fork error: errno%d\n", errno);
+		fprintf(stderr, "Fork error: errno%d\n", errno);
 		return -1;
 	}
 	if (pid){
 		if (cmd->father_fd_to_close[0] != -1){
-            printf("Father closing %d", cmd->father_fd_to_close[0]);
+            if (!silent) printf("Father closing %d\n", cmd->father_fd_to_close[0]);
             close(cmd->father_fd_to_close[0]);
         }
 		if (cmd->father_fd_to_close[1] != -1){
-            printf("Father closing %d", cmd->father_fd_to_close[1]);
+            if (!silent) printf("Father closing %d\n", cmd->father_fd_to_close[1]);
             close(cmd->father_fd_to_close[1]);
         }
 
@@ -249,7 +251,7 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 			if (cmd->next != NULL){
 				run_cmd(cmd->next, async_queue);
 			}
-            printf("Waiting for %d\n", pid);
+            if (!silent) printf("Waiting for %d\n", pid);
 			waitpid(pid, &status, 0);
 			return 0;
 		}
@@ -257,7 +259,7 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 			waitpid(pid, &status, 0);
 			int usr_code, sys_code;
 			parse_status(status, &usr_code, &sys_code);
-            printf("Exit status(usr, sys): %d, %d\n", usr_code, sys_code);
+            if (!silent) printf("Exit status(usr, sys): %d, %d\n", usr_code, sys_code);
             if (cmd->next != NULL){
                 if (cmd->mode == CMD_DEFAULT)
                     run_cmd(cmd->next, async_queue);
@@ -272,18 +274,18 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 	else{
 		//run command
         signal(SIGINT, SIG_DFL);
-        printf("Running %s\n", cmd->path);
+        if (!silent) printf("Running %s\n", cmd->path);
 		
 		change_fd(0, cmd->inp_ph);	
 		change_fd(1, cmd->out_ph);	
 		change_fd(2, cmd->err_ph);
         if (cmd->fd_to_close != -1){
-            printf("Process %d closing %d\n", getpid(), cmd->fd_to_close);
+            if (!silent) printf("Process %d closing %d\n", getpid(), cmd->fd_to_close);
             close(cmd->fd_to_close);
         }
 
         execvp(cmd->path, cmd->args);
-		printf("Execvp error: %d\n", errno);
+		fprintf(stderr, "Execvp error: %d\n", errno);
 		exit(-1);
 	}
 }

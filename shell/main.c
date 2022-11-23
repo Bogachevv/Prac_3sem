@@ -8,6 +8,8 @@
 #include "cmdrun.h"
 #include "queue.h"
 
+int silent = 0;
+
 void free_parsed(char **parsed){
 	for (char **str_ptr = parsed; *str_ptr; ++str_ptr){ 
 		free(*str_ptr);
@@ -30,14 +32,47 @@ int disable_sigint(){
     return 0;
 }
 
+int process_parsing(char **parsed, int *run_status, int *usr_code, int *sys_code, queue_t *async_queue){
+    cmd_t *cmd = NULL;
+
+    arg_seq_t *arg_seq = parse_args(parsed);
+    cmd = prepare_cmd_seq(arg_seq);
+    *run_status = run_cmd(cmd, async_queue);
+    free_arg_seq(arg_seq);
+    free_cmd(cmd);
+    free_parsed(parsed);
+
+    if (*run_status == EXIT_C) return EXIT_C;
+    if (*run_status == -1) {
+        fprintf(stderr, "Shell error\n");
+        *usr_code = 0; *sys_code = 0;
+    }
+    else {
+        parse_status(*run_status, usr_code, sys_code);
+    }
+
+    return 0;
+}
+
 int main(int argc, char** argv){
     disable_sigint();
 
 	char *str = NULL; size_t str_cap = 0, len;
 	int run_status, usr_code = 0, sys_code = 0;
-	cmd_t *cmd = NULL;
 	queue_t async_queue;
 	init(&async_queue);
+
+    if (argc > 1){
+        silent = 1;
+        char **parsed = calloc(argc, sizeof(char*));
+        for (int i = 0; i < argc - 1; ++i){
+            parsed[i] = strdup(argv[i+1]);
+        }
+        process_parsing(parsed, &run_status, &usr_code, &sys_code, &async_queue);
+        free_queue(&async_queue);
+
+        exit(0);
+    }
 
 	while (!feof(stdin)){
 		print_input_prompt(usr_code, sys_code);
@@ -49,21 +84,8 @@ int main(int argc, char** argv){
             continue;
         }
 
-        arg_seq_t *arg_seq = parse_args(parsed);
-		cmd = prepare_cmd_seq(arg_seq);
-		run_status = run_cmd(cmd, &async_queue);
-        free_arg_seq(arg_seq);
-        free_cmd(cmd);
-		free_parsed(parsed);
-		
-		if (run_status == EXIT_C) break;
-		if (run_status == -1) {
-			printf("Shell error\n");
-			usr_code = 0; sys_code = 0;
-		}
-		else {
-			parse_status(run_status, &usr_code, &sys_code);
-		}
+        int rs = process_parsing(parsed, &run_status, &usr_code, &sys_code, &async_queue);
+        if (rs == EXIT_C) break;
 	}
 	free(str);
     free_queue(&async_queue);
