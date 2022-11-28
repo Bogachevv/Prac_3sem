@@ -212,8 +212,6 @@ int wait_async(queue_t *async_queue){
 	return 0;
 }
 
-//int costyl = 2;
-
 int run_cmd(cmd_t *cmd, queue_t *async_queue){
     if (!silent) printf("CMD mode: %d\n", cmd->mode);
 	wait_async(async_queue);
@@ -226,8 +224,6 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 	}	
 
 	pid_t pid = fork();
-//    --costyl;
-//    if (costyl == 0) close(4);
 	if (pid == -1){
 		fprintf(stderr, "Fork error: errno%d\n", errno);
 		return -1;
