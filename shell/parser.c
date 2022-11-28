@@ -72,6 +72,9 @@ arg_seq_t *parse_args(char **args){
             case 3:
                 new_arg_seq->next_mode = CMD_ON_SUCCESS;
                 break;
+            case 4:
+                new_arg_seq->next_mode = CMD_ASYNC;
+                break;
             case 5:
                 new_arg_seq->next_mode = CMD_DEFAULT;
                 break;

@@ -47,6 +47,25 @@ int get_argc(char **args){
     return c;
 }
 
+int to_devnull(cmd_t *cmd, int mode){
+	int fd;
+	if (mode == 0){ //dev/null --> stdin
+		fd = open("/dev/null", O_RDONLY);
+	}
+	else if (mode == 1){ //stdout --> /dev/null
+		fd = open("/dev/null", O_WRONLY);
+	}
+	if (fd == -1){
+		perror("Can't redirect to /dev/null");
+		return -1;
+	}
+	if (mode == 0) cmd->inp_ph = fd;
+	else if (mode == 1) cmd->out_ph = fd;
+	
+	return 0;
+}
+
+
 cmd_t *prepare_cmd(char **args){
     int argc = get_argc(args);
 	cmd_t *cmd = calloc(1, sizeof(cmd_t));
@@ -78,6 +97,7 @@ cmd_t *prepare_cmd(char **args){
 		}
 		else if (((*arg_p)[0] == '&') && ((*arg_p)[1] != '&')){
 			cmd->mode = CMD_ASYNC;
+			to_devnull(cmd, 0);
 		}
 		else{
 			*arg_wr = *arg_p;
@@ -136,7 +156,7 @@ int prepare_default(char **cmd_arg_p, cmd_t **head_ptr, cmd_t **cur_ptr, int nex
     cmd_t *cur = *cur_ptr;
 
     cmd_t *new_cmd = prepare_cmd(cmd_arg_p);
-    new_cmd->mode = next_mode;
+	if (new_cmd->mode != CMD_ASYNC) new_cmd->mode = next_mode;
 
     if (new_cmd == NULL){
         fprintf(stderr, "Prepare cmd error\n");
