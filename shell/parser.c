@@ -15,6 +15,8 @@ int get_ch_mode(const char *ch_p){
         else return 4;
     }
     else if (*ch_p == ';') return 5;
+    else if (*ch_p == '(') return 6;
+    else if (*ch_p == ')') return 7;
 
     return -1;
 }
@@ -33,6 +35,7 @@ arg_seq_t *build_cmd_seq(char **args, int argc){
     }
     for (int i = 0; i < argc; ++i){
         arg_seq->args[i] = args[i];
+//        if (args[i][0] == ')') arg_seq->args[i] = NULL;
     }
 
     return arg_seq;
@@ -42,10 +45,12 @@ arg_seq_t *parse_args(char **args){
 	arg_seq_t *head = NULL, *cur = NULL;
     int argc = 0;
     char **cmd_arg_p = args;
-    int mode = 0; // 0 - default, 1 - conveyor
+    int mode = 0; // 0 - default, 1 - conveyor, 2 - brackets
     for(char **arg_p =args; ; ++arg_p) {
         int ch_mode = get_ch_mode(*arg_p);
-        if ((ch_mode == -1) || (ch_mode == 4)) {
+        if (ch_mode == 6) mode = 2;
+        if (ch_mode == 7) mode = 0;
+        if ((ch_mode == -1) || (ch_mode == 7) || (ch_mode == 4) || (mode == 2)) {
             ++argc;
             continue;
         }
@@ -72,11 +77,11 @@ arg_seq_t *parse_args(char **args){
             case 3:
                 new_arg_seq->next_mode = CMD_ON_SUCCESS;
                 break;
-            case 4:
-                new_arg_seq->next_mode = CMD_ASYNC;
-                break;
             case 5:
                 new_arg_seq->next_mode = CMD_DEFAULT;
+                break;
+            case 7:
+//                new_arg_seq->next_mode = CMD_RAW;
                 break;
             default:
                 fprintf(stderr, "Parser default case\n");

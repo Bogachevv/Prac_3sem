@@ -300,7 +300,20 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
             close(cmd->fd_to_close);
         }
 
-        execvp(cmd->path, cmd->args);
+        if (cmd->path[0] == '('){
+//            cmd->args[0] = strdup("./shell.out");
+
+            printf("SKOBKA!!!!:\n");
+            for (char **arg_p = cmd->args; *arg_p; ++arg_p){
+                printf("\t%s\n", *arg_p);
+            }
+
+            printf("\tfd[0] = %d\n", cmd->inp_ph);
+            printf("\tfd[1] = %d\n", cmd->out_ph);
+
+            execvp("./shell.out", cmd->args);
+        }
+        else execvp(cmd->path, cmd->args);
 		fprintf(stderr, "Execvp error: %d\n", errno);
 		exit(-1);
 	}
