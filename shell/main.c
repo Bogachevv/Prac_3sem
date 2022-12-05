@@ -55,7 +55,9 @@ int process_parsing(char **parsed, int *run_status, int *usr_code, int *sys_code
 }
 
 int main(int argc, char** argv){
-    printf("Running shell\n");
+//    printf("Running shell ");
+//    for (char **arg_p = argv; *arg_p; ++arg_p) printf("%s ", *arg_p);
+//    printf("\n");
     disable_sigint();
 
 	char *str = NULL; size_t str_cap = 0, len;

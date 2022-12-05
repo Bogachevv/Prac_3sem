@@ -33,9 +33,13 @@ arg_seq_t *build_cmd_seq(char **args, int argc){
         free(arg_seq);
         return NULL;
     }
-    for (int i = 0; i < argc; ++i){
-        arg_seq->args[i] = args[i];
-//        if (args[i][0] == ')') arg_seq->args[i] = NULL;
+
+    int last_bracket_pos = argc;
+    for (int i = 0; i < argc; ++i)
+        if (args[i][0] == ')') last_bracket_pos = i;
+    for (int rd = 0, wr = 0; rd < argc; ++rd){
+        if (rd == last_bracket_pos) continue;
+        arg_seq->args[wr++] = args[rd];
     }
 
     return arg_seq;
@@ -79,9 +83,6 @@ arg_seq_t *parse_args(char **args){
                 break;
             case 5:
                 new_arg_seq->next_mode = CMD_DEFAULT;
-                break;
-            case 7:
-//                new_arg_seq->next_mode = CMD_RAW;
                 break;
             default:
                 fprintf(stderr, "Parser default case\n");
