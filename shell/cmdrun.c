@@ -91,7 +91,18 @@ cmd_t *prepare_cmd(char **args){
 	
 	char **arg_wr = cmd->args;
 	int i = 0;
+    int brackets_c = 0;
 	for (char **arg_p = args; (*arg_p) && (i < argc); ++arg_p, ++i){
+        if ((*arg_p)[0] == '(') ++brackets_c;
+        else if ((*arg_p)[0] == ')') -- brackets_c;
+
+        if (brackets_c > 0) {
+            *arg_wr = *arg_p;
+            ++arg_wr;
+            continue;
+        }
+
+        if ((*arg_p)[0] == ')') continue;
 		if (strchr("<>", (*arg_p)[0])){
 			redirect(&arg_p, cmd);
 		}
@@ -267,7 +278,7 @@ int run_cmd(cmd_t *cmd, queue_t *async_queue){
 			if (cmd->next != NULL){
 				run_cmd(cmd->next, async_queue);
 			}
-            if (!silent) printf("Waiting for %d\n", pid);
+//            if (!silent) printf("Waiting for %d\n", pid);
 			waitpid(pid, &status, 0);
 			return 0;
 		}

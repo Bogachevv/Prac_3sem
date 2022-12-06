@@ -34,11 +34,7 @@ arg_seq_t *build_cmd_seq(char **args, int argc){
         return NULL;
     }
 
-    int last_bracket_pos = argc;
-    for (int i = 0; i < argc; ++i)
-        if (args[i][0] == ')') last_bracket_pos = i;
     for (int rd = 0, wr = 0; rd < argc; ++rd){
-        if (rd == last_bracket_pos) continue;
         arg_seq->args[wr++] = args[rd];
     }
 
@@ -50,11 +46,15 @@ arg_seq_t *parse_args(char **args){
     int argc = 0;
     char **cmd_arg_p = args;
     int mode = 0; // 0 - default, 1 - conveyor, 2 - brackets
+    int brackets = 0;
     for(char **arg_p =args; ; ++arg_p) {
         int ch_mode = get_ch_mode(*arg_p);
-        if (ch_mode == 6) mode = 2;
-        if (ch_mode == 7) mode = 0;
-        if ((ch_mode == -1) || (ch_mode == 7) || (ch_mode == 4) || (mode == 2)) {
+        if (ch_mode == 6) ++brackets;
+        if (ch_mode == 7){
+            --brackets;
+            if (brackets < 0) fprintf(stderr, "Incorrect input: incorrect placement of brackets\n");
+        }
+        if ((ch_mode == -1) || (ch_mode == 7) || (ch_mode == 4) || (brackets > 0)) {
             ++argc;
             continue;
         }
